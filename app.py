@@ -65,7 +65,10 @@ async def home(request: Request):
                  alt="QR code" class="w-32 h-32"/>
             <code class="text-xs text-gray-500 truncate max-w-full">{post_url}</code>
           </div>
-          <form id="send-form" class="mt-6 w-full flex space-x-2">
+          <form id="send-form"
+                action="/post/{unique_id}"
+                method="post"
+                class="mt-6 w-full flex space-x-2">
             <input type="text" name="text" placeholder="Type here…"
                    class="flex-1 bg-gray-100 border border-gray-200 text-gray-700 text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-400"/>
             <button type="submit"
@@ -77,69 +80,72 @@ async def home(request: Request):
       </div>
 
       <script>
-      // Fetch and render recent clipboard
-      async function fetchRecent() {{
-        const resp = await fetch('/data');
-        const data = await resp.json();
-        const container = document.getElementById('recent-list');
-        container.innerHTML = '';
-        const entries = Object.entries(data).reverse();
-        if (!entries.length) {{
-          container.innerHTML = '<p class="text-gray-400">No data yet.</p>';
-          return;
+        // Fetch and render recent clipboard
+        async function fetchRecent() {{
+          const resp = await fetch('/data');
+          const data = await resp.json();
+          const container = document.getElementById('recent-list');
+          container.innerHTML = '';
+          const entries = Object.entries(data).reverse();
+          if (!entries.length) {{
+            container.innerHTML = '<p class="text-gray-400">No data yet.</p>';
+            return;
+          }}
+          for (const [id, text] of entries) {{
+            const row = document.createElement('div');
+            row.className = "flex items-center justify-between py-2 border-b border-gray-200";
+            row.innerHTML = `
+              <div class="truncate">
+                <p class="font-mono text-xs text-gray-400 truncate">${{id}}</p>
+                <p class="text-gray-800 text-sm truncate">${{text}}</p>
+              </div>
+              <div class="flex space-x-2">
+                <button data-copy="${{text}}" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
+                  Copy
+                </button>
+                <button data-delete="${{id}}" class="text-red-500 hover:text-red-700 text-sm font-medium">
+                  Delete
+                </button>
+              </div>
+            `;
+            container.appendChild(row);
+          }}
+          // Attach button handlers
+          container.querySelectorAll('button[data-copy]').forEach(btn => {{
+            btn.onclick = () => {{
+              navigator.clipboard.writeText(btn.dataset.copy);
+            }};
+          }});
+          container.querySelectorAll('button[data-delete]').forEach(btn => {{
+            btn.onclick = async () => {{
+              await fetch(`/post/${{btn.dataset.delete}}`, {{ method: 'DELETE' }});
+              fetchRecent();
+            }};
+          }});
         }}
-        for (const [id, text] of entries) {{
-          const row = document.createElement('div');
-          row.className = "flex items-center justify-between py-2 border-b border-gray-200";
-          row.innerHTML = `
-            <div class="truncate">
-              <p class="font-mono text-xs text-gray-400 truncate">${{id}}</p>
-              <p class="text-gray-800 text-sm truncate">${{text}}</p>
-            </div>
-            <div class="flex space-x-2">
-              <button data-copy="${{text}}" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium">
-                Copy
-              </button>
-              <button data-delete="${{id}}" class="text-red-500 hover:text-red-700 text-sm font-medium">
-                Delete
-              </button>
-            </div>
-          `;
-          container.appendChild(row);
-        }}
-        // Attach button handlers
-        container.querySelectorAll('button[data-copy]').forEach(btn => {{
-          btn.onclick = () => {{
-            navigator.clipboard.writeText(btn.dataset.copy);
-          }};
-        }});
-        container.querySelectorAll('button[data-delete]').forEach(btn => {{
-          btn.onclick = async () => {{
-            await fetch(`/post/${{btn.dataset.delete}}`, {{ method: 'DELETE' }});
-            fetchRecent();
-          }};
-        }});
-      }}
 
-      document.getElementById('send-form').addEventListener('submit', async e => {{
-        e.preventDefault();
-        const form = e.target;
-        const formData = new FormData(form);
-        await fetch(form.action, {{
-          method: 'POST',
-          body: formData
+        // Submit without full page reload
+        document.getElementById('send-form').addEventListener('submit', async e => {{
+          e.preventDefault();
+          const form = e.target;
+          const formData = new FormData(form);
+          await fetch(form.action, {{
+            method: 'POST',
+            body: formData
+          }});
+          form.reset();
+          fetchRecent();
         }});
-        form.reset();
+
+        // Clear all
+        document.getElementById('clear-all').addEventListener('click', async () => {{
+          await fetch('/clear', {{ method: 'DELETE' }});
+          fetchRecent();
+        }});
+
+        // Initial load and polling every 5s
         fetchRecent();
-      }});
-
-      document.getElementById('clear-all').addEventListener('click', async () => {{
-        await fetch('/clear', {{ method: 'DELETE' }});
-        fetchRecent();
-      }});
-
-      // Initial load
-      fetchRecent();
+        setInterval(fetchRecent, 5000);
       </script>
     </body>
     </html>
