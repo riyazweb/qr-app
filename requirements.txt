@@ -3,3 +3,4 @@ uvicorn[standard]
 gunicorn
 qrcode
 python-multipart
+pillow
