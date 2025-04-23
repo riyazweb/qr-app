@@ -1,17 +1,17 @@
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import uuid
 import qrcode
 import io
 import base64
-import sys
 import threading
+import webbrowser
 import uvicorn
 
 app = FastAPI()
 
+# 🔓 CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,14 +20,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-clipboard_data = {}  # Dictionary to store data per ID
+clipboard_data = {}  # 🧠 Dictionary to store clipboard text by ID
 
+# 🏠 Home Page - QR Code Generator
 @app.get("/", response_class=HTMLResponse)
-async def home():
+async def home(request: Request):
     unique_id = str(uuid.uuid4())[:8]
-    url = f"http://localhost:8000/get/{unique_id}"
+    request_url = str(request.base_url)  # 🌐 Dynamic URL
+    url = f"{request_url}get/{unique_id}"
 
-    # Generate QR code
+    # 📸 Generate QR code
     qr = qrcode.make(url)
     buffer = io.BytesIO()
     qr.save(buffer, format="PNG")
@@ -46,8 +48,8 @@ async def home():
     </head>
     <body>
         <div class="container">
-            <h1>QR Clipboard</h1>
-            <p>Scan this QR code and send clipboard text to:</p>
+            <h1>📋 QR Clipboard</h1>
+            <p>Scan this QR code to send clipboard text to:</p>
             <img src="data:image/png;base64,{img_str}" alt="QR Code" /><br>
             <code>{url}</code>
             <p>Or paste content <b>here</b> to save:</p>
@@ -62,21 +64,23 @@ async def home():
     """
     return HTMLResponse(content=html_content)
 
+# 📨 Save clipboard text
 @app.post("/post/{clip_id}", response_class=HTMLResponse)
 async def post_clip(clip_id: str, text: str = Form(...)):
     clipboard_data[clip_id] = text
-    return HTMLResponse(f"<script>alert('Saved!'); window.location.href = '/get/{clip_id}';</script>")
+    return HTMLResponse(f"<script>alert('✅ Saved!'); window.location.href = '/get/{clip_id}';</script>")
 
+# 🔍 Get clipboard text
 @app.get("/get/{clip_id}", response_class=HTMLResponse)
 async def get_clip(clip_id: str):
-    text = clipboard_data.get(clip_id, "No data found for this code.")
+    text = clipboard_data.get(clip_id, "❌ No data found for this code.")
     html_content = f"""
     <html>
     <head>
         <title>Clipboard Data</title>
         <script>
             function copyText() {{
-                navigator.clipboard.writeText("{text}").then(() => alert("Copied to clipboard!"));
+                navigator.clipboard.writeText("{text}").then(() => alert("📋 Copied to clipboard!"));
             }}
         </script>
         <style>
@@ -87,7 +91,7 @@ async def get_clip(clip_id: str):
     </head>
     <body>
         <div class="box">
-            <h2>Clipboard Content</h2>
+            <h2>📋 Clipboard Content</h2>
             <p><b>{text}</b></p>
             <button onclick="copyText()">Copy to Clipboard</button>
         </div>
@@ -96,18 +100,9 @@ async def get_clip(clip_id: str):
     """
     return HTMLResponse(content=html_content)
 
+# 🚀 Run the server and open browser
 if __name__ == "__main__":
-    import os
-    from fastapi.testclient import TestClient
-    import threading
-    import webbrowser
-    from werkzeug.serving import run_simple
-
-    from starlette.applications import Starlette
-    from starlette.middleware.wsgi import WSGIMiddleware
-
     def run():
-        import uvicorn
         uvicorn.run(app, host="127.0.0.1", port=8000)
 
     threading.Thread(target=run).start()
