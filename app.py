@@ -33,14 +33,14 @@ async def home(request: Request):
     qr.save(buffer, format="PNG")
     img_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
-    # Build recent items (latest on top)
+    # Build recent items (latest first)
     items_html = ""
     for cid, val in reversed(list(clipboard_data.items())):
         items_html += f"""
-        <div class="flex items-center justify-between py-3 border-b border-gray-200">
-          <div class="flex-1 min-w-0">
-            <p class="font-mono text-xs text-gray-500 truncate">{cid}</p>
-            <p class="text-gray-800 truncate">{val}</p>
+        <div class="flex items-center justify-between py-2 border-b border-gray-200">
+          <div class="truncate">
+            <p class="font-mono text-xs text-gray-400 truncate">{cid}</p>
+            <p class="text-gray-800 text-sm truncate">{val}</p>
           </div>
           <button data-text="{val}"
                   class="ml-4 text-indigo-600 hover:text-indigo-800 text-sm font-medium focus:outline-none">
@@ -49,7 +49,7 @@ async def home(request: Request):
         </div>
         """
     if not items_html:
-        items_html = '<p class="text-gray-400 py-4">No data yet.</p>'
+        items_html = '<p class="text-gray-400 p-4">No data yet.</p>'
 
     html_content = f"""
     <!DOCTYPE html>
@@ -57,22 +57,28 @@ async def home(request: Request):
     <head>
       <meta charset="UTF-8">
       <meta http-equiv="refresh" content="16">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
       <title>QR Clipboard</title>
       <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
     </head>
     <body class="bg-gray-50 min-h-screen flex items-center justify-center p-6">
-      <div class="bg-white shadow-md rounded-md w-full max-w-sm">
-        <header class="px-6 py-4 border-b border-gray-200">
-          <h1 class="text-2xl font-semibold text-gray-800 text-center">📋 QR Clipboard</h1>
-        </header>
-        <main class="p-6 space-y-6">
-          <div class="space-y-2 text-center">
-            <p class="text-gray-500 text-sm">Scan to post text to:</p>
-            <img src="data:image/png;base64,{img_str}" alt="QR Code" class="mx-auto w-28 h-28"/>
-            <code class="block text-xs text-gray-400 truncate">{post_url}</code>
+      <div class="bg-white shadow-md rounded-md w-full max-w-4xl flex overflow-hidden">
+        <!-- Left panel: recent clipboard -->
+        <div class="w-1/2 border-r border-gray-200 p-6 flex flex-col">
+          <h2 class="text-lg font-semibold text-gray-700 mb-4">📥 Recent Clipboard</h2>
+          <div class="flex-1 overflow-auto">
+            {items_html}
           </div>
-          <form action="/post/{unique_id}" method="post" class="flex space-x-2">
+        </div>
+
+        <!-- Right panel: QR & form -->
+        <div class="w-1/2 p-6 flex flex-col items-center">
+          <h1 class="text-2xl font-semibold text-gray-800 mb-4">📋 QR Clipboard</h1>
+          <div class="flex-1 flex flex-col items-center justify-center space-y-4">
+            <img src="data:image/png;base64,{img_str}" alt="QR Code" class="w-32 h-32"/>
+            <code class="block text-xs text-gray-500 truncate max-w-full">{post_url}</code>
+          </div>
+          <form action="/post/{unique_id}" method="post" class="mt-6 w-full flex space-x-2">
             <input 
               type="text" 
               name="text" 
@@ -84,23 +90,18 @@ async def home(request: Request):
               Send
             </button>
           </form>
-          <section>
-            <h2 class="text-lg font-medium text-gray-700 mb-2">📥 Recent</h2>
-            <div class="divide-y divide-gray-200">
-              {items_html}
-            </div>
-          </section>
-        </main>
+        </div>
       </div>
+
       <script>
-        document.querySelectorAll('button[data-text]').forEach(btn => {{
-          btn.addEventListener('click', () => {{
+        document.querySelectorAll('button[data-text]').forEach(btn => {
+          btn.addEventListener('click', () => {
             navigator.clipboard.writeText(btn.dataset.text);
-            const orig = btn.innerText;
-            btn.innerText = 'Copied';
-            setTimeout(() => btn.innerText = orig, 1500);
-          }});
-        }});
+            const prev = btn.innerText;
+            btn.innerText = 'Copied!';
+            setTimeout(() => btn.innerText = prev, 1500);
+          });
+        });
       </script>
     </body>
     </html>
