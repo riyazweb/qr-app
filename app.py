@@ -27,45 +27,81 @@ async def home(request: Request):
     unique_id = str(uuid.uuid4())[:8]
     post_url = f"{base_url}post/{unique_id}"
 
+    # Generate QR code
     qr = qrcode.make(post_url)
     buffer = io.BytesIO()
     qr.save(buffer, format="PNG")
     img_str = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
-    # 🧠 Show all data
-    display_data = ""
-    for cid, val in clipboard_data.items():
-        display_data += f"<p><b>{cid}</b>: {val}</p>"
+    # Build recent items (latest on top)
+    items_html = ""
+    for cid, val in reversed(list(clipboard_data.items())):
+        items_html += f"""
+        <div class="flex items-center justify-between py-3 border-b border-gray-200">
+          <div class="flex-1 min-w-0">
+            <p class="font-mono text-xs text-gray-500 truncate">{cid}</p>
+            <p class="text-gray-800 truncate">{val}</p>
+          </div>
+          <button data-text="{val}"
+                  class="ml-4 text-indigo-600 hover:text-indigo-800 text-sm font-medium focus:outline-none">
+            Copy
+          </button>
+        </div>
+        """
+    if not items_html:
+        items_html = '<p class="text-gray-400 py-4">No data yet.</p>'
 
     html_content = f"""
-    <html>
+    <!DOCTYPE html>
+    <html lang="en">
     <head>
-        <title>📋 QR Clipboard</title>
-        <meta http-equiv="refresh" content="16">
-        <style>
-            body {{ font-family: Arial; text-align: center; background: #f2f2f2; }}
-            .container {{ background: white; padding: 2em; border-radius: 1em; margin: auto; width: 50%; box-shadow: 0 0 10px rgba(0,0,0,0.1); }}
-            input[type='text'] {{ width: 80%; padding: 0.5em; }}
-            button {{ padding: 0.5em 1em; margin-top: 1em; }}
-            .box {{ text-align: left; margin-top: 2em; background: #e8f4f8; padding: 1em; border-radius: 1em; }}
-        </style>
+      <meta charset="UTF-8">
+      <meta http-equiv="refresh" content="16">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>QR Clipboard</title>
+      <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
     </head>
-    <body>
-        <div class="container">
-            <h1>📋 QR Clipboard</h1>
-            <p>Scan to post text to:</p>
-            <img src="data:image/png;base64,{img_str}" alt="QR Code" /><br>
-            <code>{post_url}</code>
-            <form method="post" action="/post/{unique_id}">
-                <input type="text" name="text" placeholder="Type here..." />
-                <br>
-                <button type="submit">Send</button>
-            </form>
-            <div class="box">
-                <h3>📥 Received Clipboard:</h3>
-                {display_data if display_data else "<p>No data yet.</p>"}
+    <body class="bg-gray-50 min-h-screen flex items-center justify-center p-6">
+      <div class="bg-white shadow-md rounded-md w-full max-w-sm">
+        <header class="px-6 py-4 border-b border-gray-200">
+          <h1 class="text-2xl font-semibold text-gray-800 text-center">📋 QR Clipboard</h1>
+        </header>
+        <main class="p-6 space-y-6">
+          <div class="space-y-2 text-center">
+            <p class="text-gray-500 text-sm">Scan to post text to:</p>
+            <img src="data:image/png;base64,{img_str}" alt="QR Code" class="mx-auto w-28 h-28"/>
+            <code class="block text-xs text-gray-400 truncate">{post_url}</code>
+          </div>
+          <form action="/post/{unique_id}" method="post" class="flex space-x-2">
+            <input 
+              type="text" 
+              name="text" 
+              placeholder="Type here…" 
+              class="flex-1 bg-gray-100 border border-gray-200 text-gray-700 text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
+            <button 
+              type="submit"
+              class="bg-green-500 text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              Send
+            </button>
+          </form>
+          <section>
+            <h2 class="text-lg font-medium text-gray-700 mb-2">📥 Recent</h2>
+            <div class="divide-y divide-gray-200">
+              {items_html}
             </div>
-        </div>
+          </section>
+        </main>
+      </div>
+      <script>
+        document.querySelectorAll('button[data-text]').forEach(btn => {{
+          btn.addEventListener('click', () => {{
+            navigator.clipboard.writeText(btn.dataset.text);
+            const orig = btn.innerText;
+            btn.innerText = 'Copied';
+            setTimeout(() => btn.innerText = orig, 1500);
+          }});
+        }});
+      </script>
     </body>
     </html>
     """
