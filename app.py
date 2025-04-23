@@ -51,7 +51,7 @@ async def home(request: Request):
     if not items_html:
         items_html = '<p class="text-gray-400 p-4">No data yet.</p>'
 
-    html_content = f"""
+    html_content = """
     <!DOCTYPE html>
     <html lang="en">
     <head>
@@ -86,7 +86,7 @@ async def home(request: Request):
               class="flex-1 bg-gray-100 border border-gray-200 text-gray-700 text-sm rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"/>
             <button 
               type="submit"
-              class="bg-green-500 text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+              class="bg-indigo-600 text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
               Send
             </button>
           </form>
@@ -94,18 +94,24 @@ async def home(request: Request):
       </div>
 
       <script>
-        document.querySelectorAll('button[data-text]').forEach(btn => {
-          btn.addEventListener('click', () => {
-            navigator.clipboard.writeText(btn.dataset.text);
-            const prev = btn.innerText;
+        document.querySelectorAll('button[data-text]').forEach(function(btn) {{
+          btn.addEventListener('click', function() {{
+            navigator.clipboard.writeText(btn.getAttribute('data-text'));
+            var prev = btn.innerText;
             btn.innerText = 'Copied!';
-            setTimeout(() => btn.innerText = prev, 1500);
-          });
-        });
+            setTimeout(function() {{ btn.innerText = prev; }}, 1500);
+          }});
+        }});
       </script>
     </body>
     </html>
-    """
+    """.format(
+        img_str=img_str,
+        post_url=post_url,
+        items_html=items_html,
+        unique_id=unique_id
+    )
+
     return HTMLResponse(content=html_content)
 
 @app.post("/post/{clip_id}", response_class=HTMLResponse)
